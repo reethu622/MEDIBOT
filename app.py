@@ -59,9 +59,9 @@ def get_ai_answer(question):
     q_clean = re.sub(r'[^\w\s]', '', question.lower().strip())
     greeting_words = {"hi", "hello", "hey", "good morning", "good afternoon", "good evening"}
     
-    # Return simple friendly response for greetings, no search/AI calls
+    # Return friendly response for greetings, no search/AI calls
     if any(q_clean.startswith(g) for g in greeting_words):
-        return "Assistant: Hi there! How can I help you today?", []
+        return "Hi there! How can I help you today?", []
 
     # Use OpenAI if available
     if OPENAI_API_KEY:
@@ -129,6 +129,7 @@ def serve_index():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 7000))
     app.run(host="0.0.0.0", port=port)
+
 
 
 
