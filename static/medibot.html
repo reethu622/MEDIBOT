@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -14,17 +13,17 @@
     background: #f9f9f9;
   }
   h1 {
-  text-align: center;
-  margin-bottom: 20px;
-  font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', sans-serif;
-  font-size: 2.5em;
-  font-weight: bold;
-  color: #333;
-  background: linear-gradient(90deg, #ff7e5f, #feb47b); /* warm gradient */
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
-}
+    text-align: center;
+    margin-bottom: 20px;
+    font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', sans-serif;
+    font-size: 2.5em;
+    font-weight: bold;
+    color: #333;
+    background: linear-gradient(90deg, #ff7e5f, #feb47b); /* warm gradient */
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+  }
   .chat-box {
     border: 1px solid #ccc;
     border-radius: 8px;
@@ -45,32 +44,29 @@
     line-height: 1.4;
   }
   .message.user {
-  align-self: flex-end;
-  background-color: #f0f0f0; /* Light grey */
-  color: #333333; /* Dark text for readability */
-  border-bottom-right-radius: 0;
-  text-align: right;
-}
-.message.bot {
-  align-self: flex-start;
-  background-color: #e8e8e8; /* Slightly darker light grey */
-  color: #222222;
-  border-bottom-left-radius: 0;
-  text-align: left;
-}
-
-
+    align-self: flex-end;
+    background-color: #f0f0f0;
+    color: #333333;
+    border-bottom-right-radius: 0;
+    text-align: right;
+  }
+  .message.bot {
+    align-self: flex-start;
+    background-color: #e8e8e8;
+    color: #222222;
+    border-bottom-left-radius: 0;
+    text-align: left;
+  }
   .user-label {
     font-weight: 600;
-    color: #222; /* dark grey */
+    color: #222;
     margin-right: 6px;
-}
-.bot-label {
+  }
+  .bot-label {
     font-weight: 600;
-    color: #222; /* dark grey */
+    color: #222;
     margin-right: 6px;
-}
-
+  }
   .input-area {
     margin-top: 15px;
     display: flex;
@@ -150,6 +146,9 @@
   const input = document.getElementById('question');
   const sendBtn = document.querySelector('button');
 
+  // Keep conversation history as array of messages
+  let conversation = [];
+
   function appendMessage(sender, text, isHtml = true) {
     const div = document.createElement('div');
     div.className = 'message ' + sender;
@@ -174,7 +173,10 @@
   async function sendQuestion() {
     const q = input.value.trim();
     if (!q) return;
+    
     appendMessage('user', q, false);
+    conversation.push({ role: 'user', content: q });
+
     input.value = '';
     input.disabled = true;
 
@@ -182,14 +184,16 @@
       const res = await fetch('/api/v1/search_answer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: q })
+        body: JSON.stringify({ messages: conversation })
       });
 
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
 
       const data = await res.json();
+
       const safeAnswer = (data.answer || 'Sorry, I could not find an answer.').replace(/\n/g, '<br>');
       appendMessage('bot', safeAnswer, true);
+      conversation.push({ role: 'assistant', content: data.answer });
 
       if (data.sources && data.sources.length) {
         let sourcesHtml = "<strong>Sources:</strong><ul class='sources-list'>";
@@ -209,7 +213,10 @@
   }
 
   document.addEventListener('DOMContentLoaded', () => {
-    appendMessage('bot', 'Hello! 👋 I\'m Medibot. I am Your Medi Assistant.');
+    const greeting = 'Hello! 👋 I\'m Medibot. I am Your Medi Assistant.';
+    appendMessage('bot', greeting);
+    conversation.push({ role: 'assistant', content: greeting });
+
     sendBtn.addEventListener('click', sendQuestion);
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
@@ -223,3 +230,4 @@
 
 </body>
 </html>
+
