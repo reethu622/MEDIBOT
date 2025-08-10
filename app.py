@@ -30,6 +30,9 @@ MEDICAL_FAQ = {
 
 def google_search_with_citations(query):
     """Perform Google Custom Search and return results with formatted citations."""
+    if not GOOGLE_SEARCH_KEY or not GOOGLE_SEARCH_CX:
+        return [], ""  # Skip search if keys missing
+
     params = {
         "key": GOOGLE_SEARCH_KEY,
         "cx": GOOGLE_SEARCH_CX,
@@ -54,71 +57,77 @@ def google_search_with_citations(query):
         formatted_results += f"{i}. {title}\n{snippet}\nSource: {link}\n\n"
     return results, formatted_results
 
-def get_ai_answer(question):
-    """Generate an answer to the medical question using OpenAI or Gemini, fallback to FAQ."""
-    q_clean = re.sub(r'[^\w\s]', '', question.lower().strip())
-    greeting_words = {"hi", "hello", "hey", "good morning", "good afternoon", "good evening"}
-    if any(q_clean.startswith(g) for g in greeting_words):
-        return "Hello! How can I assist you with your medical question today?", []
+@app.route("/api/v1/search_answer", methods=["POST"])
+def search_answer():
+    data = request.get_json()
+
+    messages = data.get("messages")
+    if not messages or not isinstance(messages, list):
+        return jsonify({"answer": "Please provide conversation history as a list of messages.", "sources": []})
+
+    # Find latest user message to query info on
+    latest_user_message = None
+    for msg in reversed(messages):
+        if msg.get("role") == "user":
+            latest_user_message = msg.get("content", "").strip()
+            break
+
+    if not latest_user_message:
+        return jsonify({"answer": "No user message found in conversation.", "sources": []})
+
+    # Run Google Search on latest user question
+    results, formatted_results = google_search_with_citations(latest_user_message)
+
+    # System prompt to guide the assistant
+    system_prompt = (
+        "You are a helpful and knowledgeable medical assistant. "
+        "Answer the user's questions based on the following web search results. "
+        "Cite your sources with numbers like [1], [2], etc.\n\n"
+        f"{formatted_results}\n"
+    )
+
+    # Prepare messages for OpenAI
+    openai_messages = [{"role": "system", "content": system_prompt}]
+    openai_messages.extend(messages)
 
     # Use OpenAI if available
     if OPENAI_API_KEY:
         try:
-            results, formatted_results = google_search_with_citations(question)
-            prompt = (
-                f"You are a medical assistant answering questions based on the following web search results. "
-                f"Use the information to provide a detailed answer with numbered citations matching the sources below.\n\n"
-                f"{formatted_results}"
-                f"Answer the question clearly and concisely, citing sources like [1], [2], etc.\n\n"
-                f"Question: {question}\nAnswer:"
-            )
             resp = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
-                messages=[{"role": "system", "content": prompt}],
-                temperature=0.3
+                messages=openai_messages,
+                temperature=0.3,
             )
-            return resp.choices[0].message["content"], results
+            answer = resp.choices[0].message["content"]
+            return jsonify({"answer": answer, "sources": results})
         except Exception as e:
             if "quota" not in str(e).lower():
-                return f"OpenAI error: {e}", []
+                return jsonify({"answer": f"OpenAI error: {e}", "sources": []})
             print("⚠ OpenAI quota exceeded, switching to Gemini...")
 
     # Use Gemini if OpenAI fails or quota exceeded
     if GEMINI_API_KEY:
         try:
-            results, formatted_results = google_search_with_citations(question)
-            prompt = (
-                f"You are a medical assistant answering questions based on the following web search results. "
-                f"Use the information to provide a detailed answer with numbered citations matching the sources below.\n\n"
-                f"{formatted_results}"
-                f"Answer the question clearly and concisely, citing sources like [1], [2], etc.\n\n"
-                f"Question: {question}\nAnswer:"
-            )
+            # Gemini accepts plain text prompt; combine system + conversation
+            conversation_text = system_prompt + "\nConversation:\n"
+            for msg in messages:
+                role = "User" if msg["role"] == "user" else "Assistant"
+                conversation_text += f"{role}: {msg['content']}\n"
+            conversation_text += "Assistant:"
+
             model = genai.GenerativeModel("gemini-1.5-flash")
-            resp = model.generate_content(prompt)
-            return resp.text, results
+            resp = model.generate_content(conversation_text)
+            answer = resp.text
+            return jsonify({"answer": answer, "sources": results})
         except Exception as e:
-            return f"Gemini error: {e}", []
+            return jsonify({"answer": f"Gemini error: {e}", "sources": []})
 
     # Fallback to offline FAQ
     for key, answer in MEDICAL_FAQ.items():
-        if key in question.lower():
-            return answer, []
+        if key in latest_user_message.lower():
+            return jsonify({"answer": answer, "sources": []})
 
-    return "I don't know. Please consult a medical professional.", []
-
-@app.route("/api/v1/search_answer", methods=["POST"])
-def search_answer():
-    data = request.get_json()
-    question = data.get("question", "").strip()
-    if not question:
-        return jsonify({"answer": "Please enter a valid question.", "sources": []})
-
-    answer, sources = get_ai_answer(question)
-    return jsonify({
-        "answer": answer or "Sorry, I couldn't find an answer.",
-        "sources": sources
-    })
+    return jsonify({"answer": "I don't know. Please consult a medical professional.", "sources": []})
 
 @app.route("/")
 def serve_index():
@@ -127,4 +136,5 @@ def serve_index():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 7000))
     app.run(host="0.0.0.0", port=port)
+
 
