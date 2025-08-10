@@ -103,7 +103,10 @@ def get_ai_answer(question):
                 return ans, []
         return "Sorry, I couldn't find an answer. Please consult a medical professional.", []
 
-@app.route("/api/v1/search_answer", methods=["POST"])
+@app.route("/")
+def home():
+    return app.send_static_file('medibot.html')
+
 def search_answer():
     data = request.get_json()
     question = data.get("question", "").strip()
