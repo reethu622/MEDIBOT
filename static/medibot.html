@@ -19,7 +19,7 @@
     font-size: 2.5em;
     font-weight: bold;
     color: #333;
-    background: linear-gradient(90deg, #ff7e5f, #feb47b); /* warm gradient */
+    background: linear-gradient(90deg, #ff7e5f, #feb47b);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
@@ -173,7 +173,7 @@
   async function sendQuestion() {
     const q = input.value.trim();
     if (!q) return;
-    
+
     appendMessage('user', q, false);
     conversation.push({ role: 'user', content: q });
 
@@ -213,7 +213,7 @@
   }
 
   document.addEventListener('DOMContentLoaded', () => {
-    const greeting = 'Hello! 👋 I\'m Medibot. I am Your Medi Assistant.';
+    const greeting = "Hello! 👋 I'm Medibot. I am Your Medi Assistant.";
     appendMessage('bot', greeting);
     conversation.push({ role: 'assistant', content: greeting });
 
@@ -230,4 +230,5 @@
 
 </body>
 </html>
+
 
