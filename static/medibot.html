@@ -146,9 +146,6 @@
   const input = document.getElementById('question');
   const sendBtn = document.querySelector('button');
 
-  // Keep conversation history as array of messages
-  let conversation = [];
-
   function appendMessage(sender, text, isHtml = true) {
     const div = document.createElement('div');
     div.className = 'message ' + sender;
@@ -175,7 +172,6 @@
     if (!q) return;
 
     appendMessage('user', q, false);
-    conversation.push({ role: 'user', content: q });
 
     input.value = '';
     input.disabled = true;
@@ -184,7 +180,7 @@
       const res = await fetch('/api/v1/search_answer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: conversation })
+        body: JSON.stringify({ question: q })  // <-- Send only current question here
       });
 
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
@@ -193,7 +189,6 @@
 
       const safeAnswer = (data.answer || 'Sorry, I could not find an answer.').replace(/\n/g, '<br>');
       appendMessage('bot', safeAnswer, true);
-      conversation.push({ role: 'assistant', content: data.answer });
 
       if (data.sources && data.sources.length) {
         let sourcesHtml = "<strong>Sources:</strong><ul class='sources-list'>";
@@ -214,8 +209,7 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     const greeting = "Hello! 👋 I'm Medibot. I am Your Medi Assistant.";
-    appendMessage('bot', greeting);
-    conversation.push({ role: 'assistant', content: greeting });
+    appendMessage('bot', greeting, false);
 
     sendBtn.addEventListener('click', sendQuestion);
     input.addEventListener('keydown', (e) => {
@@ -230,5 +224,6 @@
 
 </body>
 </html>
+
 
 
