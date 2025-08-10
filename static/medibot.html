@@ -115,121 +115,80 @@
     color: #1E90FF;
     text-decoration: none;
   }
-  .sources-list a:hover {
-    text-decoration: underline;
-  }
 </style>
 </head>
 <body>
-
-<h1>🩺 MediBot</h1>
-
-<div id="chat" class="chat-box" aria-live="polite" aria-relevant="additions"></div>
-
-<div class="input-area">
-  <input
-    type="text"
-    id="question"
-    placeholder="Ask your medical question..."
-    aria-label="Ask your medical question"
-    autocomplete="off"
-  />
-  <button aria-label="Send question">
-    <svg class="send-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-    </svg>
-  </button>
-</div>
+  <h1>Medibot 🤖</h1>
+  <div class="chat-box" id="chat-box">
+    <div class="message bot"><span class="bot-label">Medibot:</span> Hello! 👋 I'm Medibot. I am Your Medi Assistant.</div>
+  </div>
+  <form id="chat-form" class="input-area" autocomplete="off">
+    <input type="text" id="user-input" placeholder="Ask a medical question..." />
+    <button type="submit" title="Send">
+      <svg class="send-icon" viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+    </button>
+  </form>
 
 <script>
-  const chat = document.getElementById('chat');
-  const input = document.getElementById('question');
-  const sendBtn = document.querySelector('button');
+  const chatBox = document.getElementById("chat-box");
+  const chatForm = document.getElementById("chat-form");
+  const userInput = document.getElementById("user-input");
 
-  // Conversation history as array of messages with roles
-  let conversation = [];
-
-  function appendMessage(sender, text, isHtml = true) {
-    const div = document.createElement('div');
-    div.className = 'message ' + sender;
-
-    const labelSpan = document.createElement('span');
-    labelSpan.className = sender === 'user' ? 'user-label' : 'bot-label';
-    labelSpan.textContent = sender === 'user' ? 'You:' : 'Medibot:';
-    div.appendChild(labelSpan);
-
-    if (isHtml) {
-      const contentSpan = document.createElement('span');
-      contentSpan.innerHTML = text;
-      div.appendChild(contentSpan);
+  function appendMessage(content, sender, sources = []) {
+    const msgDiv = document.createElement("div");
+    msgDiv.classList.add("message", sender);
+    if(sender === "user") {
+      msgDiv.innerHTML = `<span class="user-label">You:</span> ${content}`;
     } else {
-      div.appendChild(document.createTextNode(text));
+      let html = `<span class="bot-label">Medibot:</span> ${content}`;
+      if(sources.length > 0) {
+        html += `<br/><strong>Sources:</strong><ul class="sources-list">`;
+        sources.forEach((src, idx) => {
+          html += `<li>[${idx+1}] <a href="${src.link}" target="_blank" rel="noopener noreferrer">${src.title}</a></li>`;
+        });
+        html += "</ul>";
+      }
+      msgDiv.innerHTML = html;
     }
-
-    chat.appendChild(div);
-    chat.scrollTop = chat.scrollHeight;
+    chatBox.appendChild(msgDiv);
+    chatBox.scrollTop = chatBox.scrollHeight;
   }
 
-  async function sendQuestion() {
-    const q = input.value.trim();
-    if (!q) return;
-
-    appendMessage('user', q, false);
-    conversation.push({ role: 'user', content: q });
-
-    input.value = '';
-    input.disabled = true;
+  async function sendQuestion(question) {
+    appendMessage(question, "user");
+    userInput.value = "";
+    userInput.disabled = true;
 
     try {
-      const res = await fetch('/api/v1/search_answer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: conversation })
+      const response = await fetch("/api/v1/search_answer", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ question }),
       });
-
-      if (!res.ok) throw new Error(`Server error: ${res.status}`);
-
-      const data = await res.json();
-
-      const safeAnswer = (data.answer || 'Sorry, I could not find an answer.').replace(/\n/g, '<br>');
-      appendMessage('bot', safeAnswer, true);
-      conversation.push({ role: 'assistant', content: data.answer });
-
-      if (data.sources && data.sources.length) {
-        let sourcesHtml = "<strong>Sources:</strong><ul class='sources-list'>";
-        data.sources.forEach((src, i) => {
-          sourcesHtml += `<li><a href="${src.link}" target="_blank" rel="noopener noreferrer">[${i+1}] ${src.title}</a></li>`;
-        });
-        sourcesHtml += "</ul>";
-        appendMessage('bot', sourcesHtml, true);
-      }
+      const data = await response.json();
+      appendMessage(data.answer || "Sorry, I couldn't find an answer.", "bot", data.sources || []);
     } catch (err) {
+      appendMessage("Error: Unable to get response.", "bot");
       console.error(err);
-      appendMessage('bot', 'Error connecting to server.', false);
     } finally {
-      input.disabled = false;
-      input.focus();
+      userInput.disabled = false;
+      userInput.focus();
     }
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
-    const greeting = 'Hello! 👋 I\'m Medibot. I am Your Medi Assistant.';
-    appendMessage('bot', greeting);
-    conversation.push({ role: 'assistant', content: greeting });
-
-    sendBtn.addEventListener('click', sendQuestion);
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        sendQuestion();
-      }
-    });
-    input.focus();
+  chatForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const question = userInput.value.trim();
+    if (question) {
+      sendQuestion(question);
+    }
   });
-</script>
 
+  userInput.focus();
+</script>
 </body>
 </html>
+
 
 
 
